@@ -1,26 +1,21 @@
 package main
 
 import (
-	"net/http"
-	"secondProject/notes"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-	store := notes.NewNoteStore()
+	_, cancel := context.WithCancel(context.Background())
+	sigchan := make(chan os.Signal, 1)
 
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	signal.Notify(sigchan, syscall.SIGTERM)
 
-	r.Route("/notes", func(r chi.Router) {
-		r.Get("/", notes.GetAllNotes(store))
-		r.Post("/", notes.CreateNote(store))
-		r.Get("/{id}", notes.GetNoteByID(store))
-		r.Delete("/{id}", notes.DeleteNoteByID(store))
-	})
-
-	http.ListenAndServe(":8080", r)
+	go func() {
+		<-sigchan
+		// При отмене контекста происходит gracefull shutdown
+		cancel()
+	}()
 }
